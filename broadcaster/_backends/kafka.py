@@ -11,15 +11,16 @@ from .base import BroadcastBackend
 
 
 class KafkaBackend(BroadcastBackend):
-    def __init__(self, urls: str | list[str]) -> None:
+    def __init__(self, urls: str | list[str], **kwargs: typing.Any) -> None:
         urls = [urls] if isinstance(urls, str) else urls
         self._servers = [urlparse(url).netloc for url in urls]
         self._consumer_channels: set[str] = set()
         self._ready = asyncio.Event()
+        self._kwargs = kwargs
 
     async def connect(self) -> None:
-        self._producer = AIOKafkaProducer(bootstrap_servers=self._servers)  # pyright: ignore
-        self._consumer = AIOKafkaConsumer(bootstrap_servers=self._servers)  # pyright: ignore
+        self._producer = AIOKafkaProducer(bootstrap_servers=self._servers, **self._kwargs)  # pyright: ignore
+        self._consumer = AIOKafkaConsumer(bootstrap_servers=self._servers, **self._kwargs)  # pyright: ignore
         await self._producer.start()
         await self._consumer.start()
 

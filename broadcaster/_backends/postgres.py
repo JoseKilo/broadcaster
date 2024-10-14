@@ -8,11 +8,12 @@ from .base import BroadcastBackend
 
 
 class PostgresBackend(BroadcastBackend):
-    def __init__(self, url: str):
+    def __init__(self, url: str, **kwargs: Any):
         self._url = url
+        self._kwargs = kwargs
 
     async def connect(self) -> None:
-        self._conn = await asyncpg.connect(self._url)
+        self._conn = await asyncpg.connect(self._url, **self._kwargs)
         self._listen_queue: asyncio.Queue[Event] = asyncio.Queue()
 
     async def disconnect(self) -> None:

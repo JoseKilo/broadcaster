@@ -26,37 +26,37 @@ class Unsubscribed(Exception):
 
 
 class Broadcast:
-    def __init__(self, url: str | None = None, *, backend: BroadcastBackend | None = None) -> None:
+    def __init__(self, url: str | None = None, *, backend: BroadcastBackend | None = None, **kwargs: Any) -> None:
         assert url or backend, "Either `url` or `backend` must be provided."
-        self._backend = backend or self._create_backend(cast(str, url))
+        self._backend = backend or self._create_backend(cast(str, url), **kwargs)
         self._subscribers: dict[str, set[asyncio.Queue[Event | None]]] = {}
 
-    def _create_backend(self, url: str) -> BroadcastBackend:
+    def _create_backend(self, url: str, **kwargs: Any) -> BroadcastBackend:
         parsed_url = urlparse(url)
         if parsed_url.scheme in ("redis", "rediss"):
             from broadcaster._backends.redis import RedisBackend
 
-            return RedisBackend(url)
+            return RedisBackend(url, **kwargs)
 
         elif parsed_url.scheme == "redis-stream":
             from broadcaster._backends.redis import RedisStreamBackend
 
-            return RedisStreamBackend(url)
+            return RedisStreamBackend(url, **kwargs)
 
         elif parsed_url.scheme in ("postgres", "postgresql"):
             from broadcaster._backends.postgres import PostgresBackend
 
-            return PostgresBackend(url)
+            return PostgresBackend(url, **kwargs)
 
         if parsed_url.scheme == "kafka":
             from broadcaster._backends.kafka import KafkaBackend
 
-            return KafkaBackend(url)
+            return KafkaBackend(url, **kwargs)
 
         elif parsed_url.scheme == "memory":
             from broadcaster._backends.memory import MemoryBackend
 
-            return MemoryBackend(url)
+            return MemoryBackend(url, **kwargs)
         raise ValueError(f"Unsupported backend: {parsed_url.scheme}")
 
     async def __aenter__(self) -> Broadcast:

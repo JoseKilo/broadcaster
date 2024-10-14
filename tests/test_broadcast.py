@@ -4,13 +4,15 @@ import asyncio
 import typing
 
 import pytest
+import redis.backoff
+import redis.retry
 
 from broadcaster import Broadcast, BroadcastBackend, Event
 from broadcaster._backends.kafka import KafkaBackend
 
 
 class CustomBackend(BroadcastBackend):
-    def __init__(self, url: str):
+    def __init__(self, url: str, **kwargs: typing.Any):
         self._subscribed: set[str] = set()
 
     async def connect(self) -> None:
@@ -57,8 +59,41 @@ async def test_redis():
 
 
 @pytest.mark.asyncio
+async def test_redis_with_kwargs():
+    retry = redis.retry.Retry(  # type: ignore[no-untyped-call]
+        backoff=redis.backoff.ExponentialBackoff(),  # type: ignore[no-untyped-call]
+        retries=10,
+    )
+    async with Broadcast("redis://localhost:6379", retry=retry) as broadcast:
+        async with broadcast.subscribe("chatroom") as subscriber:
+            await broadcast.publish("chatroom", "hello")
+            event = await subscriber.get()
+            assert event.channel == "chatroom"
+            assert event.message == "hello"
+
+
+@pytest.mark.asyncio
 async def test_redis_stream():
     async with Broadcast("redis-stream://localhost:6379") as broadcast:
+        async with broadcast.subscribe("chatroom") as subscriber:
+            await broadcast.publish("chatroom", "hello")
+            event = await subscriber.get()
+            assert event.channel == "chatroom"
+            assert event.message == "hello"
+        async with broadcast.subscribe("chatroom1") as subscriber:
+            await broadcast.publish("chatroom1", "hello")
+            event = await subscriber.get()
+            assert event.channel == "chatroom1"
+            assert event.message == "hello"
+
+
+@pytest.mark.asyncio
+async def test_redis_stream_with_kwargs():
+    retry = redis.retry.Retry(  # type: ignore[no-untyped-call]
+        backoff=redis.backoff.ExponentialBackoff(),  # type: ignore[no-untyped-call]
+        retries=10,
+    )
+    async with Broadcast("redis-stream://localhost:6379", retry=retry) as broadcast:
         async with broadcast.subscribe("chatroom") as subscriber:
             await broadcast.publish("chatroom", "hello")
             event = await subscriber.get()
@@ -82,8 +117,31 @@ async def test_postgres():
 
 
 @pytest.mark.asyncio
+async def test_postgres_with_kwargs():
+    async with Broadcast(
+        "postgres://postgres:postgres@localhost:5432/broadcaster",
+        timeout=30,
+    ) as broadcast:
+        async with broadcast.subscribe("chatroom") as subscriber:
+            await broadcast.publish("chatroom", "hello")
+            event = await subscriber.get()
+            assert event.channel == "chatroom"
+            assert event.message == "hello"
+
+
+@pytest.mark.asyncio
 async def test_kafka():
     async with Broadcast("kafka://localhost:9092") as broadcast:
+        async with broadcast.subscribe("chatroom") as subscriber:
+            await broadcast.publish("chatroom", "hello")
+            event = await subscriber.get()
+            assert event.channel == "chatroom"
+            assert event.message == "hello"
+
+
+@pytest.mark.asyncio
+async def test_kafka_with_kwargs():
+    async with Broadcast("kafka://localhost:9092", request_timeout_ms=60_000) as broadcast:
         async with broadcast.subscribe("chatroom") as subscriber:
             await broadcast.publish("chatroom", "hello")
             event = await subscriber.get()
@@ -104,6 +162,17 @@ async def test_kafka_multiple_urls():
 @pytest.mark.asyncio
 async def test_custom():
     backend = CustomBackend("")
+    async with Broadcast(backend=backend) as broadcast:
+        async with broadcast.subscribe("chatroom") as subscriber:
+            await broadcast.publish("chatroom", "hello")
+            event = await subscriber.get()
+            assert event.channel == "chatroom"
+            assert event.message == "hello"
+
+
+@pytest.mark.asyncio
+async def test_custom_with_kwargs():
+    backend = CustomBackend("", foo="bar")
     async with Broadcast(backend=backend) as broadcast:
         async with broadcast.subscribe("chatroom") as subscriber:
             await broadcast.publish("chatroom", "hello")

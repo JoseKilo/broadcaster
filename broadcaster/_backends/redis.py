@@ -10,8 +10,8 @@ from .base import BroadcastBackend
 
 
 class RedisBackend(BroadcastBackend):
-    def __init__(self, url: str):
-        self._conn = redis.Redis.from_url(url)
+    def __init__(self, url: str, **kwargs: typing.Any):
+        self._conn = redis.Redis.from_url(url, **kwargs)
         self._pubsub = self._conn.pubsub()
         self._ready = asyncio.Event()
         self._queue: asyncio.Queue[Event] = asyncio.Queue()
@@ -63,12 +63,12 @@ StreamMessageType = typing.Tuple[bytes, typing.Tuple[typing.Tuple[bytes, typing.
 
 
 class RedisStreamBackend(BroadcastBackend):
-    def __init__(self, url: str):
+    def __init__(self, url: str, **kwargs: typing.Any):
         url = url.replace("redis-stream", "redis", 1)
         self.streams: dict[bytes | str | memoryview, int | bytes | str | memoryview] = {}
         self._ready = asyncio.Event()
-        self._producer = redis.Redis.from_url(url)
-        self._consumer = redis.Redis.from_url(url)
+        self._producer = redis.Redis.from_url(url, **kwargs)
+        self._consumer = redis.Redis.from_url(url, **kwargs)
 
     async def connect(self) -> None:
         pass

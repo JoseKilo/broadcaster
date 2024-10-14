@@ -4,7 +4,7 @@ from .._base import Event
 
 
 class BroadcastBackend:
-    def __init__(self, url: str) -> None:
+    def __init__(self, url: str, **kwargs: Any) -> None:
         raise NotImplementedError()
 
     async def connect(self) -> None:

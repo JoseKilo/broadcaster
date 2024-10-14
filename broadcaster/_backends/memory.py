@@ -8,7 +8,7 @@ from .base import BroadcastBackend
 
 
 class MemoryBackend(BroadcastBackend):
-    def __init__(self, url: str):
+    def __init__(self, url: str, **kwargs: typing.Any):
         self._subscribed: set[str] = set()
 
     async def connect(self) -> None:
